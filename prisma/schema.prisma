@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  password  String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pages      PageMember[]
+  comments   Comment[]
+  reactions  Reaction[]
+  reports    Report[]
+}
+
+model Page {
+  id          String       @id @default(uuid())
+  slug        String       @unique
+  title       String?
+  description String?
+  createdAt   DateTime     @default(now())
+
+  members     PageMember[]
+  comments    Comment[]
+  reactions   Reaction[]
+  reports     Report[]
+}
+
+model PageMember {
+  id        String   @id @default(uuid())
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  pageId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  role      MemberRole @default(OWNER)
+  joinedAt  DateTime @default(now())
+
+  @@unique([pageId, userId])
+}
+
+model Comment {
+  id          String    @id @default(uuid())
+  page        Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  pageId      String
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  parentId    String?
+  replies     Comment[] @relation("CommentReplies")
+  user        User?     @relation(fields: [userId], references: [id])
+  userId      String?
+  isAnonymous Boolean   @default(true)
+  isHidden    Boolean   @default(false)
+  message     String
+  createdAt   DateTime  @default(now())
+
+  reactions   Reaction[]
+  reports     Report[]
+}
+
+model Reaction {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  comment    Comment? @relation(fields: [commentId], references: [id])
+  commentId  String?
+  page       Page?    @relation(fields: [pageId], references: [id])
+  pageId     String?  
+  emoji      String
+  createdAt  DateTime @default(now())
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  comment     Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  commentId   String
+  page        Page     @relation(fields: [pageId], references: [id])
+  pageId      String
+  reason      ReportReason
+  reportedBy  User    @relation(fields: [reportedById], references: [id])
+  reportedById String
+  createdAt   DateTime @default(now())
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum MemberRole {
+  OWNER
+  MODERATOR
+}
+
+enum ReportReason {
+  SPAM
+  SEXUAL
+  VIOLENCE
+  HARASSMENT
+  HATE_SPEECH
+  MISINFORMATION
+  OTHER
+}
